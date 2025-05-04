@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BMI Chatbot</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="chat-container">
+        <div class="chat-box" id="chat-box">
+            <div class="bot-message">🤖 Hello! What's your name?</div>
+        </div>
+        <div class="input-box">
+            <input type="text" id="chat-input" placeholder="Type your message here..." autofocus>
+            <button onclick="sendMessage()">Send</button>
+        </div>
+    </div>
+
+    <script>
+        let step = 0;
+        let userData = {};
+
+        function sendMessage() {
+            const inputField = document.getElementById("chat-input");
+            const message = inputField.value.trim();
+            if (!message) return;
+            addMessage("user", message);
+            inputField.value = "";
+
+            // Conversation steps
+            if (step === 0) {
+                userData.name = message;
+                addMessage("bot", `Nice to meet you, ${userData.name}! What's your age?`);
+            } else if (step === 1) {
+                userData.age = message;
+                addMessage("bot", "Great! What's your gender?");
+            } else if (step === 2) {
+                userData.gender = message;
+                addMessage("bot", "Alright! Now please enter your weight (kg) and height (m) separated by a space (e.g., 70 1.75).");
+            } else if (step === 3) {
+                const parts = message.split(" ");
+                if (parts.length >= 2) {
+                    userData.weight = parseFloat(parts[0]);
+                    userData.height = parseFloat(parts[1]);
+                    // Call the prediction endpoint
+                    fetch("/predict", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ weight: userData.weight, height: userData.height })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        let reply = `<p>📊 Your BMI is <strong>${data.bmi}</strong>.</p>`;
+                        reply += `<p>🏥 Obesity Level: <strong>${data.obesity_level}</strong></p>`;
+                        reply += `<p>🍽 Diet Plan: ${data.diet_plan}</p>`;
+                        reply += `<p>🏋️ Exercise Plan: ${data.exercise_plan}</p>`;
+                        reply += `<p>⚠️ Heart Attack Risk: ${data.heart_risk}%</p>`;
+                        reply += `<p>⚠️ Hypertension Risk: ${data.hypertension_risk}%</p>`;
+                        addMessage("bot", reply);
+                    });
+                } else {
+                    addMessage("bot", "Please enter weight and height separated by a space.");
+                }
+            }
+            step++;
+        }
+
+        function addMessage(sender, text) {
+            const chatBox = document.getElementById("chat-box");
+            const msgDiv = document.createElement("div");
+            msgDiv.className = sender === "bot" ? "bot-message" : "user-message";
+            msgDiv.innerHTML = text;
+            chatBox.appendChild(msgDiv);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+    </script>
+</body>
+</html>
